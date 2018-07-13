@@ -1,27 +1,19 @@
 package example;
 
-//import io.vertx.core.AbstractVerticle;
-//import io.vertx.core.eventbus.ReplyFailure;
-//import io.vertx.core.json.JsonObject;
-//
-//public class ExampleVerticle extends AbstractVerticle {
-//
-//  @Override
-//  public void start() {
-//    vertx.eventBus().<JsonObject>consumer("actionInvoke", message -> {
-//      try {
-//        throw new Exception("noooooo");
-//      } catch (Exception ex) {
-//        message.fail(ReplyFailure.RECIPIENT_FAILURE.toInt(), ex.getMessage());
-//      }
-//    });
-//  }
-//}
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.eventbus.ReplyFailure;
+import io.vertx.core.json.JsonObject;
 
-import com.google.gson.JsonObject;
+public class ExampleVerticle extends AbstractVerticle {
 
-public class ExampleVerticle {
-  public static JsonObject main(JsonObject args) {
-    return new JsonObject();
+  @Override
+  public void start() {
+    vertx.eventBus().<JsonObject>consumer("actionInvoke", message -> {
+      try {
+        throw new Exception("noooooo");
+      } catch (Exception ex) {
+        message.fail(ReplyFailure.RECIPIENT_FAILURE.toInt(), ex.getMessage());
+      }
+    });
   }
 }

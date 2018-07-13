@@ -30,7 +30,7 @@ public class VertxProxy {
   private long runTimeoutMs;
 
   public static void main(String[] args) throws Exception {
-    new VertxProxy().start(8080, 5, 100);
+    new VertxProxy().start(8080, 3, 3000);
   }
 
   private void start(int port, int startWaitSec, long runTimeoutMs) throws Exception {
@@ -145,6 +145,7 @@ public class VertxProxy {
     }
 
     JsonObject input = ctx.getBodyAsJson();
+
     JsonObject actionArg = input.getJsonObject("value", new JsonObject());
 
     System.setSecurityManager(new WhiskSecurityManager());
@@ -184,7 +185,8 @@ public class VertxProxy {
           .setStatusCode(HttpResponseStatus.BAD_GATEWAY.code())
           .end(new JsonObject()
               .put("error",
-                  failure != null ? "An error has occurred (see logs for details): " + failure : message)
+                  failure != null ? "An error has occurred (see logs for details): " + failure
+                      : message)
               .encode());
 
     } else {
@@ -197,7 +199,7 @@ public class VertxProxy {
   private DeliveryOptions owHeaders(JsonObject actionInput) {
     // Wrap OW variables into eventBus headers
     MultiMap owVariables = MultiMap.caseInsensitiveMultiMap();
-    for (String field : new String[]{"api_key", "namespace", "action_name", "activation_id",
+    for (String field : new String[]{"api_host", "api_key", "namespace", "action_name", "activation_id",
         "deadline"}) {
       try {
         owVariables
@@ -208,5 +210,4 @@ public class VertxProxy {
 
     return new DeliveryOptions().setHeaders(owVariables);
   }
-
 }

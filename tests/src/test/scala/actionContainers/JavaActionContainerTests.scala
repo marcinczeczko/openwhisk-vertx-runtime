@@ -135,7 +135,6 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
     err.trim shouldBe empty
   }
 
-  //FIXME: error messaging in Proxy should be clean
   it should "not allow initialization twice" in {
     val (out, err) = withJavaContainer { c =>
       val jar = JarBuilder.mkBase64Jar(
@@ -169,7 +168,6 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
     err.trim should not be empty
   }
 
-  //FIXME: error messaging in Proxy should be clean
   it should "report an error if used java action instead of Verticle" in {
     val (out, err) = withJavaContainer { c =>
       val jar = JarBuilder.mkBase64Jar(
@@ -396,69 +394,5 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
       runRes shouldBe defined
       runRes.get.fields.get("error") shouldBe defined
     }
-  }
-
-  val dynamicLoadingJar = JarBuilder.mkBase64Jar(
-    Seq(
-      Seq("example", "EntryPoint.java") ->
-        """
-          | package example;
-          |
-          | import com.google.gson.*;
-          | import java.lang.reflect.*;
-          |
-          | public class EntryPoint {
-          |     private final static String CLASS_NAME = "example.DynamicClass";
-          |     public static JsonObject main(JsonObject args) throws Exception {
-          |         String cl = args.getAsJsonPrimitive("classLoader").getAsString();
-          |
-          |         Class d = null;
-          |         if("local".equals(cl)) {
-          |             d = Class.forName(CLASS_NAME);
-          |         } else if("thread".equals(cl)) {
-          |             d = Thread.currentThread().getContextClassLoader().loadClass(CLASS_NAME);
-          |         }
-          |
-          |         Object o = d.newInstance();
-          |         Method m = o.getClass().getMethod("getMessage");
-          |         String msg = (String)m.invoke(o);
-          |
-          |         JsonObject response = new JsonObject();
-          |         response.addProperty("message", msg);
-          |         return response;
-          |     }
-          | }
-        """.stripMargin.trim,
-      Seq("example", "DynamicClass.java") ->
-        """
-          | package example;
-          |
-          | public class DynamicClass {
-          |     public String getMessage() {
-          |         return "dynamic!";
-          |     }
-          | }
-        """.stripMargin.trim))
-
-  def classLoaderTest(param: String) = {
-    val (out, err) = withJavaContainer { c =>
-      val (initCode, _) = c.init(initPayload("example.EntryPoint", dynamicLoadingJar))
-      initCode should be(200)
-
-      val (runCode, runRes) = c.run(runPayload(JsObject("classLoader" -> JsString(param))))
-      runCode should be(200)
-
-      runRes shouldBe defined
-      runRes.get.fields.get("message") shouldBe Some(JsString("dynamic!"))
-    }
-    (out ++ err).trim shouldBe empty
-  }
-
-  it should "support loading classes from the current classloader" in {
-    classLoaderTest("local")
-  }
-
-  it should "support loading classes from the Thread classloader" in {
-    classLoaderTest("thread")
   }
 }
