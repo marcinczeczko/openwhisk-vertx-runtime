@@ -19,6 +19,7 @@ include 'tests'
 
 include 'core:vertx35'
 include 'core:vertx35:proxy'
+include 'core:example'
 
 
 rootProject.name = 'runtime-vertx35'

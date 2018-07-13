@@ -13,12 +13,9 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.MissingFormatArgumentException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -28,18 +25,27 @@ public class VertxProxy {
 
   private String deploymentId = null;
 
+  private SecurityManager sm;
+
+  private long runTimeoutMs;
+
   public static void main(String[] args) throws Exception {
-    new VertxProxy().start(8080, 5);
+    new VertxProxy().start(8080, 5, 100);
   }
 
-  private void start(int port, int startWaitSec) throws Exception {
+  private void start(int port, int startWaitSec, long runTimeoutMs) throws Exception {
+    this.runTimeoutMs = runTimeoutMs;
     vertx = Vertx.vertx();
     Router router = Router.router(vertx);
 
+    sm = System.getSecurityManager();
+
     router.route().handler(BodyHandler.create());
-    router.route().failureHandler(this::failureHandler);
-    router.post("/init").handler(this::initHandler);
-    router.post("/run").handler(this::runHandler);
+    router.post("/init").handler(this::init);
+    router.post("/init").handler(this::writeResponse);
+
+    router.post("/run").handler(this::run);
+    router.post("/run").handler(this::writeResponse);
 
     CompletableFuture<HttpServer> server = new CompletableFuture<>();
 
@@ -54,19 +60,6 @@ public class VertxProxy {
         });
 
     server.get(startWaitSec, TimeUnit.SECONDS);
-  }
-
-  private void failureHandler(RoutingContext ctx) {
-    Throwable failure = ctx.failure();
-    failure.printStackTrace(System.err);
-
-    writeLogMarkers();
-
-    ctx.response()
-        .setStatusCode(HttpResponseStatus.BAD_GATEWAY.code())
-        .end(new JsonObject()
-            .put("error", "An error has occurred (see logs for details): " + failure)
-            .encode());
   }
 
   private Future<Path> saveJar(byte[] jar) {
@@ -89,21 +82,17 @@ public class VertxProxy {
     return result;
   }
 
-  private static void writeLogMarkers() {
-    System.out.println("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX");
-    System.err.println("XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX");
-    System.out.flush();
-    System.err.flush();
-  }
-
-  private void initHandler(RoutingContext ctx) {
+  private void init(RoutingContext ctx) {
     if (deploymentId != null) {
       String errorMessage = "Cannot initialize the action more than once.";
       System.err.println(errorMessage);
-      ctx.fail(new IllegalStateException(errorMessage));
+      ctx.put("error", true);
+      ctx.put("error_message", "Cannot initialize the action more than once.");
+      ctx.next();
+      return;
     }
 
-    if (ctx.getBodyAsJson().containsKey("value")) {
+    if (ctx.getBody().length() > 0 && ctx.getBodyAsJson().containsKey("value")) {
       JsonObject message = ctx.getBodyAsJson().getJsonObject("value");
 
       String verticle = message.getString("main");
@@ -111,12 +100,16 @@ public class VertxProxy {
 
       saveJar(jar).setHandler(ar -> {
         if (ar.failed()) {
-          ctx.fail(ar.cause());
+          ctx.put("error", true);
+          ctx.put("error_cause", ar.cause());
+          ctx.next();
         } else {
           Path jarPath = ar.result();
           if (!jarPath.toFile().exists()) {
-            ctx.fail(new FileNotFoundException(
-                String.format("%s file does not exist", jarPath.toAbsolutePath())));
+            ctx.put("error", true);
+            ctx.put("error_message",
+                String.format("%s file does not exist", jarPath.toAbsolutePath()));
+            ctx.next();
           }
 
           // Jar file saved, try to deploy the verticle
@@ -126,39 +119,79 @@ public class VertxProxy {
 
           vertx.deployVerticle(verticle, options, deployed -> {
             if (deployed.failed()) {
-              ctx.fail(deployed.cause());
+              ctx.put("error", true);
+              ctx.put("error_cause", deployed.cause());
+              ctx.next();
             } else {
               deploymentId = deployed.result();
-              ctx.response().setStatusCode(HttpResponseStatus.OK.code()).end("OK");
+              ctx.next();
             }
           });
         }
       });
     } else {
-      ctx.fail(new MissingFormatArgumentException("Missing main/no code to execute."));
+      ctx.put("error", true);
+      ctx.put("error_message", "Missing main/no code to execute.");
+      ctx.next();
     }
   }
 
-  private void runHandler(RoutingContext ctx) {
+  private void run(RoutingContext ctx) {
     if (deploymentId == null) {
-      ctx.fail(new IllegalStateException("Cannot invoke an uninitialized action."));
+      ctx.put("error", true);
+      ctx.put("error_message", "Cannot invoke an uninitialized action.");
+      ctx.next();
+      return;
     }
 
     JsonObject input = ctx.getBodyAsJson();
     JsonObject actionArg = input.getJsonObject("value", new JsonObject());
 
-    vertx.eventBus().<JsonObject>send("actionInvoke", actionArg, owHeaders(input), reply -> {
-      if (reply.failed()) {
-        ctx.fail(new InvocationTargetException(reply.cause(),
-            "An error has occured while invoking the action"));
-      } else {
-        JsonObject body = reply.result().body();
-        if (body == null) {
-          ctx.fail(new NullPointerException("The action returned null"));
-        }
-        ctx.response().setStatusCode(HttpResponseStatus.OK.code()).end(body.encode());
+    System.setSecurityManager(new WhiskSecurityManager());
+
+    vertx.eventBus().<JsonObject>send("actionInvoke", actionArg,
+        owHeaders(input).setSendTimeout(runTimeoutMs), reply -> {
+          if (reply.failed()) {
+            ctx.put("error", true);
+            ctx.put("error_message", "An error has occured while invoking the action");
+            ctx.put("error_cause", reply.cause());
+            ctx.next();
+          } else {
+            JsonObject body = reply.result().body();
+            if (body == null) {
+              ctx.put("error", true);
+              ctx.put("error_message", "The action returned null");
+              ctx.next();
+            }
+            ctx.put("result", body);
+            ctx.next();
+          }
+        });
+  }
+
+  private void writeResponse(RoutingContext ctx) {
+    System.setSecurityManager(sm);
+
+    Boolean error = ctx.get("error");
+    if (error != null) {
+      String message = ctx.get("error_message");
+      Throwable failure = ctx.get("error_cause");
+      if (failure != null) {
+        failure.printStackTrace(System.err);
       }
-    });
+
+      ctx.response()
+          .setStatusCode(HttpResponseStatus.BAD_GATEWAY.code())
+          .end(new JsonObject()
+              .put("error",
+                  failure != null ? "An error has occurred (see logs for details): " + failure : message)
+              .encode());
+
+    } else {
+      JsonObject result = ctx.get("result");
+      ctx.response().setStatusCode(HttpResponseStatus.OK.code())
+          .end(result != null ? result.encode() : "OK");
+    }
   }
 
   private DeliveryOptions owHeaders(JsonObject actionInput) {
