@@ -28,7 +28,7 @@ import actionContainers.ResourceHelpers.JarBuilder
 import actionContainers.ActionContainer.withContainer
 
 @RunWith(classOf[JUnitRunner])
-class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSystem with ActionProxyContainerTestUtils {
+class VertxActionContainerTests extends FlatSpec with Matchers with WskActorSystem with ActionProxyContainerTestUtils {
 
   // Helpers specific to java actions
   def withJavaContainer(code: ActionContainer => Unit, env: Map[String, String] = Map.empty) =

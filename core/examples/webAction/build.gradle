@@ -15,26 +15,27 @@
  * limitations under the License.
  */
 
-include 'tests'
+apply plugin: 'java'
 
-include 'core:vertx35'
-include 'core:vertx35:proxy'
-include 'core:examples:action'
-include 'core:examples:webAction'
+repositories {
+    mavenCentral()
+}
 
+dependencies {
+    compile 'com.google.code.gson:gson:2.6.2'
+    compile 'io.vertx:vertx-core:3.5.2'
+    compile 'io.vertx:vertx-web:3.5.2'
+}
 
-rootProject.name = 'runtime-vertx35'
-
-gradle.ext.openwhisk = [
-        version: '1.0.0-SNAPSHOT'
-]
-
-gradle.ext.scala = [
-    version: '2.11.11',
-    compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
-]
-
-gradle.ext.scalafmt = [
-    version: '1.5.0',
-    config: new File(rootProject.projectDir, '.scalafmt.conf')
-]
+//task oneJar(type: Jar) {
+//    manifest.from jar.manifest
+//    classifier = 'all'
+//    from {
+//        configurations.runtime.collect { it.isDirectory() ? it : zipTree(it) }
+//    } {
+//        exclude "META-INF/*.SF"
+//        exclude "META-INF/*.DSA"
+//        exclude "META-INF/*.RSA"
+//    }
+//    with jar
+//}
