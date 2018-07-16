@@ -40,7 +40,6 @@ class VertxActionContainerTests extends FlatSpec with Matchers with WskActorSyst
 
   behavior of "Vertx action"
 
-  //FIXME: env variables augumentation
   it should s"run a java snippet and confirm expected environment variables" in {
     val props = Seq(
       "api_host" -> "xyz",

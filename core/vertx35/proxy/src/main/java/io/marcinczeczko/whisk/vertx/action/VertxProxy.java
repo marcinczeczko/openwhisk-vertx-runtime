@@ -1,4 +1,4 @@
-package openwhisk.vertx.action;
+package io.marcinczeczko.whisk.vertx.action;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.DeploymentOptions;

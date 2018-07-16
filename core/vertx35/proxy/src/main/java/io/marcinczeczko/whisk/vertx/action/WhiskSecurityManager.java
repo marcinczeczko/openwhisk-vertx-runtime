@@ -1,4 +1,4 @@
-package openwhisk.vertx.action;
+package io.marcinczeczko.whisk.vertx.action;
 
 import java.security.Permission;
 

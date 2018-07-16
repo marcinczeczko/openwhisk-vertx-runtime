@@ -29,7 +29,7 @@ dependencies {
 
 jar {
     manifest {
-        attributes('Main-Class': 'openwhisk.vertx.action.VertxProxy')
+        attributes('Main-Class': 'io.marcinczeczko.whisk.vertx.action.VertxProxy')
     }
 }
 
