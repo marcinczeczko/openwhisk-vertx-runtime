@@ -1,65 +1,21 @@
 # OpenWhisk runtimes for Vert.x 3.5
 
-## Quick Vertx Action
-A Vertx action is a Java program that extends `AbstractVerticle` class of Vert.x and has the method `start` has the the structure as follows:
-```java
-import io.vertx.core.*;
+## Running example actions
 
-public class SampleVertxAction extends AbstractVerticle {
-  public void start() {
-      vertx.eventBus().<JsonObject>consumer("actionInvoke", message -> {
-        //process message and send reply to the message
-      });
-  }
-}
+### Example Vert.x action
+Build example action
+```
+./gradlew examples:action:jar
 ```
 
-For example, create a Java file called `HelloVertx.java` with the following content:
-
-```java
-import io.vertx.core.*;
-
-public class HelloVertx extends AbstractVerticle {
-  public void start() {
-    vertx.eventBus().<JsonObject>consumer("actionInvoke", message -> {
-      String name = "stranger";
-      if (message.body().containsKey("name")) {
-        name = message.body().getString("name");
-      }
-      message.reply(new JsonObject().put("greeting", "Hello " + name + " from Vert.x!"));
-    });
-  }
-}
+Create action
 ```
-In order to compile, test and archive Java files, you must have a [JDK 8](http://openjdk.java.net/install/) installed locally.
-
-Then, compile `HelloVertx.java` into a JAR file `hello.jar` as follows:
-```
-javac HelloVertx.java
-```
-```
-jar cvf hello.jar HelloVertx.class
+wsk action update exampleAction examples/action/build/libs/action.jar --main example.SampleVertxAction --docker openwhisk/vertx35action
 ```
 
-**Note:** [vertx](https://github.com/eclipse/vert.x) must exist in your Java CLASSPATH when compiling the Java file.
-
-### Create the Vertx Action
-To use as a docker action:
+Run the action
 ```
-wsk action update helloVertx hello.jar --main HelloVertx --docker openwhisk/vertx35action
-```
-This works on any deployment of Apache OpenWhisk
-
-You need to specify the name of the main Verticle class using `--main`. An eligible main
-class is one that extends `AbstractVerticle` and has `start` method as described above. If the
-class is not in the default package, use the Java fully-qualified class name,
-e.g., `--main com.example.MyVerticle`.
-
-### Invoke the Vertx Action
-Action invocation is the same for Vertx actions as it is for Java, Swift and JavaScript actions:
-
-```
-wsk action invoke --result helloVertx --param name World
+wsk action invoke --result exampleAction --param name World
 ```
 
 ```json
@@ -67,6 +23,49 @@ wsk action invoke --result helloVertx --param name World
       "greeting": "Hello World from Vert.x!"
   }
 ```
+
+### Example Web Vert.x Action
+```
+./gradlew examples:webAction:jar
+```
+
+Create action
+```
+wsk action update exampleWebAction examples/webAction/build/libs/webAction.jar --main example.SampleVertxWebAction --docker openwhisk/vertx35action --web true
+```
+
+Get the URL of the web action
+```
+wsk action get exampleWebAction --url 
+```
+
+```
+ok: got action exampleWebAction
+http://<WSK_URL>/api/v1/web/guest/default/exampleWebAction
+```
+
+Set a request for an action
+```
+curl -i http://<WSK_URL>/api/v1/web/guest/default/exampleWebAction
+```
+
+Result
+```
+HTTP/1.1 200 OK
+X-Request-ID: Wm2qsq15gwz8WXFhM4blprPv5iVFMTd5
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH
+Access-Control-Allow-Headers: Authorization, Content-Type
+Set-Cookie: UserID=Jane; Max-Age=3600; Version=
+Set-Cookie: SessionID=asdfgh123456; Path=/
+Server: akka-http/10.1.1
+Date: Mon, 16 Jul 2018 09:23:43 GMT
+Content-Type: text/html; charset=UTF-8
+Content-Length: 40
+
+<html><body><h3>hello</h3></body></html>%
+```
+
 
 ## Local development
 ```

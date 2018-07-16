@@ -8,10 +8,6 @@ public class SampleVertxAction extends AbstractVerticle {
   @Override
   public void start() {
     vertx.eventBus().<JsonObject>consumer("actionInvoke", message -> {
-      message.reply(message.body());
-    });
-
-    vertx.eventBus().<JsonObject>consumer("actionInvoke", message -> {
       String name = "stranger";
       if (message.body().containsKey("name")) {
         name = message.body().getString("name");

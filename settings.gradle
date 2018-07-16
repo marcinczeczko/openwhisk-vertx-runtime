@@ -19,8 +19,8 @@ include 'tests'
 
 include 'core:vertx35'
 include 'core:vertx35:proxy'
-include 'core:examples:action'
-include 'core:examples:webAction'
+include 'examples:action'
+include 'examples:webAction'
 
 
 rootProject.name = 'runtime-vertx35'
