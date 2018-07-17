@@ -10,7 +10,7 @@ Build example action
 
 Create action
 ```
-wsk action update exampleAction examples/action/build/libs/action.jar --main example.SampleVertxAction --docker openwhisk/vertx35action
+wsk action update exampleAction examples/action/build/libs/action.jar --main example.SampleVertxAction --docker ${user_prefix}/vertx35action
 ```
 
 Run the action
@@ -31,7 +31,7 @@ wsk action invoke --result exampleAction --param name World
 
 Create action
 ```
-wsk action update exampleWebAction examples/webAction/build/libs/webAction.jar --main example.SampleVertxWebAction --docker openwhisk/vertx35action --web true
+wsk action update exampleWebAction examples/webAction/build/libs/webAction.jar --main example.SampleVertxWebAction --docker ${user_prefix}/vertx35action --web true
 ```
 
 Get the URL of the web action
